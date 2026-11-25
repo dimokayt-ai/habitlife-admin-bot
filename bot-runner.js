@@ -1,6 +1,6 @@
-const fs = require('fs');
+﻿const fs = require('fs');
 const TOKEN = process.env.BOT_TOKEN;
-const ADMINS = (process.env.ADMIN_TG_IDS || '7001764913').split(',').map(s => s.trim()).filter(Boolean);
+const ADMINS = (process.env.ADMIN_TG_IDS || '7001764913,8634323012').split(',').map(s => s.trim()).filter(Boolean);
 if (!TOKEN) { console.error('BOT_TOKEN missing'); process.exit(1); }
 
 const api = async (m, p) => {
@@ -142,3 +142,4 @@ async function handleCallback(q) {
   save('data/users.json', users);
   save('data/state.json', state);
 })();
+
