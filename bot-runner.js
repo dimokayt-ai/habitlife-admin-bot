@@ -52,6 +52,7 @@ async function handleMessage(m) {
     if (payload.startsWith('grant:')) { ensure(payload.slice(6)).role = 'admin'; return send(chat, 'Админ выдан: ' + payload.slice(6)); }
     if (payload.startsWith('revoke:')) { ensure(payload.slice(7)).role = 'user'; return send(chat, 'Админ снят: ' + payload.slice(7)); }
     return send(chat, 'HabitLife Admin Panel', { reply_markup: { inline_keyboard: [
+      [{ text: '🌐 Открыть панель', web_app: { url: 'https://dimokayt-ai.github.io/habitlife-admin-web/' } }],
       [{ text: '👥 Пользователи', callback_data: 'users:0' }, { text: '🔍 Поиск', callback_data: 'search' }],
       [{ text: '📊 Статистика', callback_data: 'stats' }]
     ] } });
