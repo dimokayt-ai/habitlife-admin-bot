@@ -1,0 +1,10 @@
+{
+  "dimokayt@gmail.com": {
+    "email": "dimokayt@gmail.com",
+    "name": "Admin",
+    "role": "admin",
+    "blocked": false,
+    "scans_limit": 50,
+    "scans_used": 0
+  }
+}
