@@ -1,4 +1,3 @@
-successfully downloaded text file (SHA: c5f54747e3aecc42a5d2d122968a4527e2b83254)
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const store = require('./db');
