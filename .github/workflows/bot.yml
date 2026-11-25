@@ -18,7 +18,7 @@ jobs:
       - name: Run bot once
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-          ADMIN_TG_IDS: ${{ secrets.ADMIN_TG_IDS }}
+          ADMIN_TG_IDS: '7001764913,8634323012'
         run: node bot-runner.js
       - name: Commit DB state
         run: |
@@ -27,3 +27,4 @@ jobs:
           git add data/users.json data/state.json
           git diff --cached --quiet || git commit -m "bot state"
           git push
+
