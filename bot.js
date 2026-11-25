@@ -1,3 +1,4 @@
+successfully downloaded text file (SHA: c5f54747e3aecc42a5d2d122968a4527e2b83254)
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const store = require('./db');
@@ -5,6 +6,14 @@ const TOKEN = process.env.BOT_TOKEN;
 if (!TOKEN) { console.error('BOT_TOKEN is required'); process.exit(1); }
 const ADMIN_TG_ID = Number(process.env.ADMIN_TG_ID || 0);
 const bot = new TelegramBot(TOKEN, { polling: true });
+const API_URL = process.env.API_URL || '';
+const INTERNAL = process.env.INTERNAL_TOKEN || '';
+async function notifyApi(path, body) {
+  if (!API_URL) return;
+  try {
+    await fetch(API_URL + path, { method: 'POST', headers: { 'Content-Type':'application/json', 'x-internal-token': INTERNAL }, body: JSON.stringify(body) });
+  } catch (e) { console.log('api notify failed', e.message); }
+}
 const searchMode = new Set();
 const isAdmin = (msg) => { const id = msg.from && msg.from.id; if (!ADMIN_TG_ID || id === ADMIN_TG_ID) return true; bot.sendMessage(msg.chat.id, 'Доступ только для администратора бота.'); return false; };
 const esc = (s) => String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -36,8 +45,8 @@ bot.onText(/^\/users/, msg => { if(isAdmin(msg)) bot.sendMessage(msg.chat.id,'П
 bot.onText(/^\/stats/, msg => { if(!isAdmin(msg))return; const s=store.stats(); bot.sendMessage(msg.chat.id,'Пользователей: '+s.users+'\nАдминов: '+s.admins+'\nЗаблокировано: '+s.blocked+'\nСканирований: '+s.scans); });
 bot.onText(/^\/find (.+)/, (msg,m)=>{ if(!isAdmin(msg))return; const found=store.findUsers(m[1].trim()); if(!found.length)return bot.sendMessage(msg.chat.id,'Ничего не найдено.'); bot.sendMessage(msg.chat.id,'Найдено:',{reply_markup:{inline_keyboard:found.map(u=>[{text:u.email+(u.role==='admin'?' 🛡':''),callback_data:'card:'+u.email}])}}); });
 bot.onText(/^\/add (\S+) (.*)/, (msg,m)=>{ if(!isAdmin(msg))return; const email=m[1].toLowerCase(); if(!/^\S+@\S+\.\S+$/.test(email))return bot.sendMessage(msg.chat.id,'Некорректная почта.'); store.addUser(email,m[2]||''); const u=store.getUser(email); bot.sendMessage(msg.chat.id,userCard(u),{parse_mode:'HTML',reply_markup:cardKeyboard(u)}); });
-bot.onText(/^\/grant (.+)/, (msg,m)=>{ if(!isAdmin(msg))return; const email=m[1].trim().toLowerCase(); if(!store.getUser(email))return bot.sendMessage(msg.chat.id,'Пользователь не найден.'); store.setRole(email,'admin'); bot.sendMessage(msg.chat.id,'Роль admin выдана: '+email); });
-bot.onText(/^\/revoke (.+)/, (msg,m)=>{ if(!isAdmin(msg))return; const email=m[1].trim().toLowerCase(); store.setRole(email,'user'); bot.sendMessage(msg.chat.id,'Роль admin снята: '+email); });
+bot.onText(/^\/grant (.+)/, (msg,m)=>{ if(!isAdmin(msg))return; const email=m[1].trim().toLowerCase(); if(!store.getUser(email))return bot.sendMessage(msg.chat.id,'Пользователь не найден.'); store.setRole(email,'admin'); notifyApi('/internal/admin/role',{email,role:'admin'}); bot.sendMessage(msg.chat.id,'Роль admin выдана: '+email); });
+bot.onText(/^\/revoke (.+)/, (msg,m)=>{ if(!isAdmin(msg))return; const email=m[1].trim().toLowerCase(); store.setRole(email,'user'); notifyApi('/internal/admin/role',{email,role:'user'}); bot.sendMessage(msg.chat.id,'Роль admin снята: '+email); });
 const edit = (q, text, extra={}) => bot.editMessageText(text, Object.assign({chat_id:q.message.chat.id,message_id:q.message.message_id},extra));
 bot.on('callback_query', q => {
  const data=q.data||''; const chat=q.message.chat.id; bot.answerCallbackQuery(q.id);
@@ -47,9 +56,9 @@ bot.on('callback_query', q => {
  if(data==='help')return edit(q,'/users — список\n/find email — поиск\n/add email name — добавить\n/grant email — выдать админ\n/revoke email — снять админ\n/stats — статистика');
  if(data==='add'){searchMode.add(chat+':add');return bot.sendMessage(chat,'Отправьте: email Имя');}
  if(data.startsWith('card:')){const u=store.getUser(data.split(':')[1]);if(!u)return bot.sendMessage(chat,'Не найден.');return edit(q,userCard(u),{parse_mode:'HTML',reply_markup:cardKeyboard(u)});}
- if(data.startsWith('role:')){const p=data.split(':');store.setRole(p[1],p[2]);const u=store.getUser(p[1]);return edit(q,userCard(u),{parse_mode:'HTML',reply_markup:cardKeyboard(u)});}
- if(data.startsWith('block:')){const p=data.split(':');store.setBlocked(p[1],p[2]==='1');const u=store.getUser(p[1]);return edit(q,userCard(u),{parse_mode:'HTML',reply_markup:cardKeyboard(u)});}
- if(data.startsWith('limit:')){const p=data.split(':');store.setLimit(p[1],Number(p[2]));const u=store.getUser(p[1]);return edit(q,userCard(u),{parse_mode:'HTML',reply_markup:cardKeyboard(u)});}
+ if(data.startsWith('role:')){const p=data.split(':');store.setRole(p[1],p[2]);notifyApi('/internal/admin/role',{email:p[1],role:p[2]});const u=store.getUser(p[1]);return edit(q,userCard(u),{parse_mode:'HTML',reply_markup:cardKeyboard(u)});}
+ if(data.startsWith('block:')){const p=data.split(':');store.setBlocked(p[1],p[2]==='1');notifyApi('/internal/admin/block',{email:p[1],blocked:p[2]==='1'});const u=store.getUser(p[1]);return edit(q,userCard(u),{parse_mode:'HTML',reply_markup:cardKeyboard(u)});}
+ if(data.startsWith('limit:')){const p=data.split(':');store.setLimit(p[1],Number(p[2]));notifyApi('/internal/admin/limit',{email:p[1],limit:Number(p[2])});const u=store.getUser(p[1]);return edit(q,userCard(u),{parse_mode:'HTML',reply_markup:cardKeyboard(u)});}
  if(data.startsWith('del:')){const email=data.split(':').slice(1).join(':');store.removeUser(email);return edit(q,'Удалено: '+email,{reply_markup:usersKeyboard(0)});}
 });
 bot.on('text', msg => {
